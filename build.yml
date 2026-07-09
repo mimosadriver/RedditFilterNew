@@ -1,0 +1,57 @@
+name: Build RedditFilter dylib
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Theos
+        run: |
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+        env:
+          THEOS: ${{ github.workspace }}/theos
+
+      - name: Install iOS SDK
+        run: |
+          export THEOS=${{ github.workspace }}/theos
+          curl -fsSL https://github.com/theos/sdks/releases/download/iPhoneOS17.5/iPhoneOS17.5.sdk.tar.zst | \
+            zstd -d | tar -xf - -C $THEOS/sdks/
+
+      - name: Build dylib
+        run: |
+          export THEOS=${{ github.workspace }}/theos
+          export PATH=$THEOS/bin:$PATH
+          make THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
+        env:
+          THEOS: ${{ github.workspace }}/theos
+
+      - name: Find built dylib
+        run: |
+          find . -name "*.dylib" | head -20
+          find . -name "*.deb" | head -20
+
+      - name: Upload dylib artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RedditFilter-dylib
+          path: |
+            .theos/obj/arm64/RedditFilter.dylib
+            packages/*.deb
+          if-no-files-found: warn
+
+      - name: Upload deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RedditFilter-deb
+          path: packages/*.deb
+          if-no-files-found: warn

@@ -1,0 +1,9 @@
+Package: com.ryan.redditfilter
+Name: RedditFilter
+Depends: mobilesubstrate
+Version: 1.1.0
+Architecture: iphoneos-arm64
+Description: Blocks promoted/sponsored posts in the Reddit feed, with optional subreddit/keyword filtering
+Maintainer: Ryan
+Author: Ryan
+Section: Tweaks
