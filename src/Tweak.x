@@ -149,7 +149,11 @@ static BOOL gSettingsInjected = NO;
 
 %new
 - (void)rf_openFilterSettings {
-    RFSettingsViewController *vc = [[RFSettingsViewController alloc] initWithStyle:UITableViewStyleInsetGrouped];
+    UITableViewStyle style = UITableViewStyleGrouped;
+    if (@available(iOS 13.0, *)) {
+        style = UITableViewStyleInsetGrouped;
+    }
+    RFSettingsViewController *vc = [[RFSettingsViewController alloc] initWithStyle:style];
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:vc];
     [self presentViewController:nav animated:YES completion:nil];
 }
