@@ -3,8 +3,6 @@ name: Build RedditFilter dylib
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -15,43 +13,50 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Theos
-        run: |
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-        env:
-          THEOS: ${{ github.workspace }}/theos
+      - name: Install dependencies
+        run: brew install ldid xz zstd dpkg || true
 
-      - name: Install iOS SDK
+      - name: Set up Theos (direct clone, no install script)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          export THEOS=${{ github.workspace }}/theos
-          curl -fsSL https://github.com/theos/sdks/releases/download/iPhoneOS17.5/iPhoneOS17.5.sdk.tar.zst | \
-            zstd -d | tar -xf - -C $THEOS/sdks/
+          export THEOS=$HOME/theos
+          echo "THEOS=$HOME/theos" >> $GITHUB_ENV
+          git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+          git clone --recursive https://github.com/theos/theos.git $THEOS
+          echo "Theos cloned to $THEOS"
+
+      - name: Install iOS SDK (direct codeload zip, no api.github.com)
+        run: |
+          export THEOS=$HOME/theos
+          curl -fsSL -o sdks.zip https://codeload.github.com/theos/sdks/zip/refs/heads/master
+          unzip -q sdks.zip
+          if [ -d sdks-master/iPhoneOS16.5.sdk ]; then
+            mv sdks-master/iPhoneOS16.5.sdk $THEOS/sdks/
+          else
+            mv sdks-master/*.sdk $THEOS/sdks/
+          fi
+          echo "=== Installed SDKs ==="
+          ls $THEOS/sdks/
 
       - name: Build dylib
         run: |
-          export THEOS=${{ github.workspace }}/theos
+          export THEOS=$HOME/theos
           export PATH=$THEOS/bin:$PATH
           make THEOS_PACKAGE_SCHEME=rootless FINALPACKAGE=1
-        env:
-          THEOS: ${{ github.workspace }}/theos
 
-      - name: Find built dylib
+      - name: List build output
         run: |
-          find . -name "*.dylib" | head -20
-          find . -name "*.deb" | head -20
+          echo "=== dylibs ==="
+          find .theos -name "*.dylib" 2>/dev/null || echo "none in .theos"
+          echo "=== packages ==="
+          find packages -type f 2>/dev/null || echo "no packages dir"
 
-      - name: Upload dylib artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: RedditFilter-dylib
+          name: RedditFilter
           path: |
-            .theos/obj/arm64/RedditFilter.dylib
+            .theos/obj/**/*.dylib
             packages/*.deb
-          if-no-files-found: warn
-
-      - name: Upload deb artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: RedditFilter-deb
-          path: packages/*.deb
           if-no-files-found: warn
